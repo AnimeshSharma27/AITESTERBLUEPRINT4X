@@ -6,3 +6,6 @@ target/
 *.log
 .DS_Store
 .vscode/
+.env
+config.json
+__pycache__/
