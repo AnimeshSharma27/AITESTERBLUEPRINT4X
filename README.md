@@ -2,6 +2,17 @@
 
 AI-powered test automation blueprint.
 
+## Contents
+
+- [Overview](#overview)
+- [Chapters](#chapters)
+  - [Chapter 01: LLM Basics](#chapter-01-llm-basics)
+  - [Chapter 02: Prompt Engineering](#chapter-02-prompt-engineering)
+    - [The 54-skill QA prompt suite](#the-54-skill-qa-prompt-suite)
+    - [Install a skill](#install-a-skill)
+  - [Chapter 03: Local Test Case Generator](#chapter-03-local-test-case-generator)
+- [License](#license)
+
 ## Overview
 
 AITester Blueprint 4x Where we will learn about a lot of things related to:
