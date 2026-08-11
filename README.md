@@ -11,6 +11,11 @@ AI-powered test automation blueprint.
     - [The 54-skill QA prompt suite](#the-54-skill-qa-prompt-suite)
     - [Install a skill](#install-a-skill)
   - [Chapter 03: Local Test Case Generator](#chapter-03-local-test-case-generator)
+    - [Features](#features)
+    - [File structure](#file-structure)
+    - [Running the app](#running-the-app)
+    - [Environment variables](#environment-variables)
+    - [Data flow](#data-flow)
 - [License](#license)
 
 ## Overview
@@ -221,7 +226,8 @@ Then invoke it by name, such as `$api-contract-validator`. The 18 new skills als
 
 A two-screen Streamlit application that generates test cases from Jira tickets using a local LLM with cloud fallback.
 
-**Features:**
+#### Features
+
 - Chat-style interface: type a Jira ticket key and get structured test cases
 - Fetches ticket details (summary, description, acceptance criteria) from Jira REST API
 - Generates test cases using Ollama (`gemma3:1b` on `localhost:11434`) by default
@@ -230,7 +236,7 @@ A two-screen Streamlit application that generates test cases from Jira tickets u
 - Credentials persisted via `.env` (seed) and `config.json` (runtime store)
 - Anti-hallucination prompt template with strict formatting rules
 
-**File Structure:**
+#### File structure
 
 ```
 chapter_03_Local_TC_Generator/
@@ -252,7 +258,7 @@ chapter_03_Local_TC_Generator/
     └── plan.md                # Implementation plan
 ```
 
-**Running the App:**
+#### Running the app
 
 ```bash
 cd chapter_03_Local_TC_Generator/src
@@ -260,7 +266,9 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-**Environment Variables (.env):**
+#### Environment variables
+
+Seed these in `chapter_03_Local_TC_Generator/src/.env`, which is git-ignored:
 
 ```
 JIRA_URL=https://your-org.atlassian.net
@@ -270,7 +278,7 @@ GROQ_API_KEY=your-groq-api-key
 OLLAMA_MODEL=gemma3:1b
 ```
 
-**Data Flow:**
+#### Data flow
 
 ```
 User types "create test cases for JIRA-102"
