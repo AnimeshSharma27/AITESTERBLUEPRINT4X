@@ -20,7 +20,11 @@ AITester Blueprint 4x Where we will learn about a lot of things related to:
 Foundation concepts of Large Language Models and AI fundamentals.
 
 ### Chapter 02: Prompt Engineering
-RICE-POT template framework for structured prompt engineering. Includes prompt templates for Playwright, Selenium, API testing, and STLC workflows. Also contains a Salesforce Selenium test framework with Page Object Model pattern.
+RICE-POT template framework for structured prompt engineering. Includes a
+[54-skill QA prompt suite](chapter_02_Prompt_Eng/prompt_templates/README.md) covering the full
+STLC, Playwright, Selenium, API testing, AI safety and guardrails, and evidence-based test
+deliverables. Also contains a Salesforce Selenium test framework with the Page Object Model
+pattern.
 
 ### Chapter 03: Local Test Case Generator
 
