@@ -16,6 +16,14 @@ AI-powered test automation blueprint.
     - [Running the app](#running-the-app)
     - [Environment variables](#environment-variables)
     - [Data flow](#data-flow)
+  - [Chapter 04: JobKit AI](#chapter-04-jobkit-ai)
+  - [Chapter 05: Job Tracker AI](#chapter-05-job-tracker-ai)
+    - [Features](#features-1)
+    - [Tech stack](#tech-stack)
+    - [Data model](#data-model)
+    - [Running the app](#running-the-app-1)
+    - [State flow](#state-flow)
+  - [Chapter 06: Branding and LinkedIn Skills](#chapter-06-branding-and-linkedin-skills)
 - [License](#license)
 
 ## Overview
@@ -288,6 +296,132 @@ User types "create test cases for JIRA-102"
   -> llm_client.py tries Ollama first, falls back to Groq
   -> Test cases rendered as a formatted markdown table in chat
 ```
+
+### Chapter 04: JobKit AI
+
+A resume tailoring toolkit that turns raw LinkedIn job exports into tailored,
+per-role resumes. The `resume-tailor` skill reads a job description, produces a
+structured spec (`.specs/*.json`) with highlighted skills, fit-gap notes, and
+section-by-section content, then renders a polished `.docx` into `output/`.
+
+**Q&A — why use this?**
+- **Q: When do I reach for it?** A: When applying to a specific role and you want the resume keywords, ordering, and emphasis matched to that posting instead of sending one generic CV.
+- **Q: What does it replace?** A: Manual copy-paste tailoring in Word, and the guesswork of which buzzwords a posting actually screens for.
+- **Q: What's the gotcha?** A: The spec flags fit gaps (missing years, unverified claims) rather than papering over them. Resolve every `[confirm ...]` marker before sending anything out.
+
+```mermaid
+flowchart LR
+    CSV["linkedin_jobs.csv<br/>LinkedIn export"] --> JD["Pick a job<br/>description"]
+    JD --> SKILL["resume-tailor<br/>skill"]
+    SKILL --> SPEC[".specs/job.json<br/>structured spec +<br/>fit gaps"]
+    SPEC --> REVIEW{"Human<br/>review"}
+    REVIEW --> DOCX["output/*.docx<br/>tailored resume"]
+
+    classDef src fill:#57606a,stroke:#24292f,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef gate fill:#bf8700,stroke:#7a5600,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    class CSV,JD src
+    class SKILL,SPEC ai
+    class REVIEW gate
+    class DOCX out
+```
+
+The repo ships two worked examples: specs and rendered docx files for an
+Accenture Test Automation Lead and a Mouser Electronics Software QA Team Lead.
+
+### Chapter 05: Job Tracker AI
+
+A local-first kanban board for tracking job applications. Six columns from
+Wishlist to Rejected, drag-and-drop between stages, all data stored in the
+browser's IndexedDB so nothing leaves the machine.
+
+#### Features
+
+- Kanban board with six status columns: Wishlist, Applied, Follow-up, Interview, Offer, Rejected
+- Drag-and-drop between columns via dnd-kit, with pointer and keyboard sensors
+- Add/edit modal with company, role, LinkedIn URL, resume used, salary range, date applied, status, and notes
+- Resume name autocomplete from previously used resumes
+- Search by company or role, sort by newest or oldest applied date
+- Header metrics: total jobs, interviews, offers
+- JSON backup export and import (import replaces existing data after confirmation)
+- Light/dark theme toggle persisted in localStorage
+- Delete confirmation dialog, toast notifications, Escape-to-close modals
+
+#### Tech stack
+
+| Layer | Choice |
+| --- | --- |
+| UI | React 18 + Vite |
+| Styling | Tailwind CSS 3 (`darkMode: 'class'`) |
+| Drag and drop | @dnd-kit/core + @dnd-kit/sortable |
+| Persistence | IndexedDB via `idb` |
+| Icons | lucide-react |
+
+#### Data model
+
+Each job is one record in the `jobs` object store of the `job-tracker-ai`
+IndexedDB database, keyed by `id`, indexed by `status` and `dateApplied`:
+
+```js
+{
+  id: 'uuid',
+  company: 'Accenture',
+  role: 'Test Automation Lead',
+  linkedInUrl: 'https://linkedin.com/jobs/...',
+  resumeUsed: 'QA_Lead_Resume',
+  dateApplied: '2026-08-23',
+  salaryRange: '',
+  notes: '',
+  status: 'applied',   // wishlist | applied | follow-up | interview | offer | rejected
+  createdAt: '...',
+  updatedAt: '...',
+}
+```
+
+#### Running the app
+
+```bash
+cd chapter_05_JobTrackerAI
+npm install
+npm run dev        # http://localhost:5173
+```
+
+#### State flow
+
+```mermaid
+flowchart LR
+    LOAD["Mount<br/>getAllJobs()"] --> BOARD["Kanban board<br/>grouped by status"]
+    BOARD -->|"drag card"| DND["handleDragEnd<br/>saveJob(updated)"]
+    BOARD -->|"add / edit"| MODAL["JobModal<br/>validated form"]
+    MODAL --> SAVE["saveJob()"]
+    BOARD -->|"delete"| CONFIRM["ConfirmDelete"] --> DEL["removeJob()"]
+    BOARD --> EXPORT["Export JSON backup"]
+    EXPORT -.-> IMPORT["Import replaces<br/>all jobs"] --> REPLACE["replaceAllJobs()"]
+    DND --> BOARD
+    SAVE --> BOARD
+    DEL --> BOARD
+    REPLACE --> BOARD
+
+    classDef ui fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef store fill:#8250df,stroke:#4a1f8f,color:#fff
+    classDef io fill:#2da44e,stroke:#0f5323,color:#fff
+    class LOAD,BOARD,MODAL,CONFIRM ui
+    class DND,SAVE,DEL,REPLACE store
+    class EXPORT,IMPORT io
+```
+
+**Q&A — why use this?**
+- **Q: When do I reach for it?** A: Any active job hunt where you are juggling more than a handful of applications across stages.
+- **Q: What does it replace?** A: The spreadsheet. Status changes become a drag instead of a cell edit, and search plus metrics come free.
+- **Q: What's the gotcha?** A: Data lives only in that browser's IndexedDB. Use Export before clearing site data or switching machines; import replaces everything.
+
+### Chapter 06: Branding and LinkedIn Skills
+
+A content repurposing skill pack for personal branding: `brand-voice.md`
+defines the voice, `deliverable-specs.md` specifies output formats, and
+`worked-example.md` shows a full run. Ships as `files.zip` containing the
+packaged `.skill` bundle.
 
 ## License
 
