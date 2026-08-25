@@ -24,6 +24,10 @@ AI-powered test automation blueprint.
     - [Running the app](#running-the-app-1)
     - [State flow](#state-flow)
   - [Chapter 06: Branding and LinkedIn Skills](#chapter-06-branding-and-linkedin-skills)
+    - [What it produces](#what-it-produces)
+    - [File structure](#file-structure-1)
+    - [Install the skill](#install-the-skill)
+    - [Pack pipeline](#pack-pipeline)
 - [License](#license)
 
 ## Overview
@@ -418,10 +422,80 @@ flowchart LR
 
 ### Chapter 06: Branding and LinkedIn Skills
 
-A content repurposing skill pack for personal branding: `brand-voice.md`
-defines the voice, `deliverable-specs.md` specifies output formats, and
-`worked-example.md` shows a full run. Ships as `files.zip` containing the
-packaged `.skill` bundle.
+A Claude/Codex skill that turns any content seed into a publish-ready pack in
+The Testing Academy voice. Drop in a title, rough bullets, a screenshot, a URL,
+a thread, or a spoken dump. The skill returns a Medium article, a LinkedIn post,
+LinkedIn image prompts, and a Medium cover prompt.
+
+The voice spec, deliverable formats, and a full worked example live in
+[chapter_06_Branding_LinkedinSkills/README.md](chapter_06_Branding_LinkedinSkills/README.md).
+
+#### What it produces
+
+| File | Job |
+| --- | --- |
+| `pack-1-medium-article.md` | 2,500 to 3,200 word Medium draft |
+| `pack-2-linkedin-post.md` | Hook ladder, 220 to 260 word post, first-comment blocks |
+| `pack-3-linkedin-image-prompts.md` | Style C v2 tweet-screenshot cards |
+| `pack-4-medium-image-prompt.md` | Style A 16:9 cyber infographic cover |
+
+#### File structure
+
+```
+chapter_06_Branding_LinkedinSkills/
+├── files.zip                         # original archive
+├── content-repurpose-pack.skill      # packaged bundle
+└── content-repurpose-pack/
+    ├── SKILL.md                      # pipeline and hook protocol
+    └── references/
+        ├── brand-voice.md            # Hook / Story / Offer, 13 threads
+        ├── deliverable-specs.md      # exact formats for the four files
+        └── worked-example.md         # one full input-to-output pass
+```
+
+#### Install the skill
+
+```bash
+skill_source=chapter_06_Branding_LinkedinSkills/content-repurpose-pack
+skill_destination="$HOME/.claude/skills/content-repurpose-pack"
+
+if [ -e "$skill_destination" ]; then
+  echo "Skill already exists; compare and back it up before an explicitly approved update."
+  exit 1
+fi
+
+mkdir -p "$(dirname "$skill_destination")"
+cp -R "$skill_source" "$skill_destination"
+```
+
+For Codex, use `$HOME/.codex/skills/content-repurpose-pack`. Then invoke it by
+name, such as `$content-repurpose-pack`.
+
+#### Pack pipeline
+
+```mermaid
+flowchart LR
+    SEED["Any seed<br/>title, bullets,<br/>URL, dump"] --> SHAPE["Identify shape<br/>reconcile the<br/>promised number"]
+    SHAPE --> MINE["Mine five things<br/>thesis, framework,<br/>assets, numbers"]
+    MINE --> VOICE["Map to voice<br/>Hook / Story / Offer"]
+    VOICE --> PACK["Four pack files"]
+    PACK --> SWEEP["Grep sweep<br/>chai, BFSI, sprint tests"]
+    SWEEP --> PUBLISH{"Human<br/>publish"}
+
+    classDef src fill:#57606a,stroke:#24292f,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef gate fill:#bf8700,stroke:#7a5600,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    class SEED src
+    class SHAPE,MINE,VOICE,SWEEP ai
+    class PACK out
+    class PUBLISH gate
+```
+
+**Q&A — why use this?**
+- **Q: When do I reach for it?** A: When a seed needs to become a Medium + LinkedIn + image pack in this voice, not a generic rewrite.
+- **Q: What does it replace?** A: Re-prompting from scratch for length, banned phrases, first-comment splits, and image specs.
+- **Q: What's the gotcha?** A: A pack with no receipt is the biggest quality drop. Supply a real story, or accept a composite flagged for anonymization. No em dashes, anywhere.
 
 ## License
 
