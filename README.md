@@ -28,6 +28,8 @@ AI-powered test automation blueprint.
     - [File structure](#file-structure-1)
     - [Install the skill](#install-the-skill)
     - [Pack pipeline](#pack-pipeline)
+    - [Voice spine](#voice-spine)
+    - [Hook ladder](#hook-ladder)
 - [License](#license)
 
 ## Overview
@@ -439,6 +441,43 @@ The voice spec, deliverable formats, and a full worked example live in
 | `pack-3-linkedin-image-prompts.md` | Style C v2 tweet-screenshot cards |
 | `pack-4-medium-image-prompt.md` | Style A 16:9 cyber infographic cover |
 
+```mermaid
+flowchart LR
+    subgraph IN["Seed"]
+        T["Title"]
+        B["Bullets"]
+        U["URL"]
+        D["Dump"]
+    end
+
+    SKILL["content-repurpose-pack"]
+
+    subgraph OUT["Pack"]
+        P1["Medium<br/>article"]
+        P2["LinkedIn<br/>post"]
+        P3["LinkedIn<br/>cards"]
+        P4["Medium<br/>cover"]
+    end
+
+    T --> SKILL
+    B --> SKILL
+    U --> SKILL
+    D --> SKILL
+    SKILL --> P1 --> PUB{"Human<br/>publish"}
+    SKILL --> P2 --> PUB
+    SKILL --> P3 --> PUB
+    SKILL --> P4 --> PUB
+
+    classDef src fill:#57606a,stroke:#24292f,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    classDef gate fill:#bf8700,stroke:#7a5600,color:#fff
+    class T,B,U,D src
+    class SKILL ai
+    class P1,P2,P3,P4 out
+    class PUB gate
+```
+
 #### File structure
 
 ```
@@ -490,6 +529,86 @@ flowchart LR
     class SHAPE,MINE,VOICE,SWEEP ai
     class PACK out
     class PUBLISH gate
+```
+
+#### Voice spine
+
+Same three beats on LinkedIn and Medium. Only the word budget changes. The usual
+miss is a great Hook and Story with no Offer.
+
+```mermaid
+flowchart LR
+    HOOK["HOOK<br/>earn the expand"] --> STORY["STORY<br/>one real receipt"]
+    STORY --> OFFER["OFFER<br/>so what do I do"]
+
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef pack fill:#8250df,stroke:#4a1f8f,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    class HOOK ai
+    class STORY pack
+    class OFFER out
+```
+
+```mermaid
+flowchart TB
+    L1["Hook: 2 lines"] --> L2["Receipt with an undeniable detail"]
+    L2 --> L3["Two-beat punch, under 8 words"]
+    L3 --> L4["Steelman, then pivot"]
+    L4 --> L5["X is not Y. X is Z."]
+    L5 --> L6["One-tier offer"]
+    L6 --> L7["Hashtags"]
+
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef pack fill:#8250df,stroke:#4a1f8f,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    class L1,L2 ai
+    class L3,L4,L5 pack
+    class L6,L7 out
+```
+
+Offer rotation: four posts on a belief or a question, then one free asset, and a
+product link only for real launches.
+
+```mermaid
+flowchart LR
+    T1["Tier 1<br/>Belief"] --> T2["Tier 2<br/>Question"]
+    T2 --> T3["Tier 3<br/>Asset"]
+    T3 --> T4["Tier 4<br/>Product"]
+
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef pack fill:#8250df,stroke:#4a1f8f,color:#fff
+    class T1,T2 out
+    class T3 ai
+    class T4 pack
+```
+
+#### Hook ladder
+
+When the ask is controversial, the skill returns three labelled variants instead
+of sanitizing or refusing.
+
+```mermaid
+flowchart TB
+    ASK["Controversial hooks requested"] --> A["A. Prediction<br/>forecast, not fake data"]
+    ASK --> B["B. Threat<br/>highest reach"]
+    ASK --> C["C. Receipt<br/>a story, not a claim"]
+
+    A --> LI["LinkedIn: A or C"]
+    C --> LI
+    B --> X["X: B often belongs here"]
+    C --> REC["Default on LinkedIn"]
+
+    classDef src fill:#57606a,stroke:#24292f,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef gate fill:#bf8700,stroke:#7a5600,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    classDef pack fill:#8250df,stroke:#4a1f8f,color:#fff
+    class ASK src
+    class A ai
+    class B gate
+    class C,REC out
+    class LI,X pack
 ```
 
 **Q&A — why use this?**
