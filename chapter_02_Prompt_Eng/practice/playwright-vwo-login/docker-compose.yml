@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  # Main test execution service
+  playwright-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vwo-login-tests
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - BASE_URL=${BASE_URL:-https://app.vwo.com}
+      - VALID_EMAIL=${VALID_EMAIL:-test@example.com}
+      - VALID_PASSWORD=${VALID_PASSWORD:-testpassword}
+      - PAGE_LOAD_TARGET=${PAGE_LOAD_TARGET:-2000}
+      - RATE_LIMIT_THRESHOLD=${RATE_LIMIT_THRESHOLD:-5}
+    volumes:
+      - ./test-results:/app/test-results
+      - ./tests:/app/tests:ro
+    ports:
+      - "9323:9323"  # Playwright debug port
+    networks:
+      - test-network
+    depends_on:
+      - mock-server
+    restart: on-failure
+    healthcheck:
+      test: ["CMD", "test", "-f", "/app/test-results/results.json"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Mock server for testing (optional)
+  mock-server:
+    image: mockserver/mockserver:latest
+    container_name: vwo-login-mock-server
+    environment:
+      MOCKSERVER_INITIALIZATION_JSON_PATH: /config/mockserver-init.json
+    volumes:
+      - ./mock-config:/config
+    ports:
+      - "1080:1080"
+    networks:
+      - test-network
+    profiles:
+      - with-mock
+
+  # Report server for viewing results
+  report-server:
+    image: nginx:alpine
+    container_name: vwo-login-report-server
+    volumes:
+      - ./test-results:/usr/share/nginx/html:ro
+    ports:
+      - "8080:80"
+    networks:
+      - test-network
+    profiles:
+      - with-reports
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Parallel test execution coordinator
+  test-coordinator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: vwo-login-test-coordinator
+    environment:
+      - NODE_ENV=test
+      - CI=true
+      - PLAYWRIGHT_WORKERS=4
+      - BASE_URL=${BASE_URL:-https://app.vwo.com}
+    command: npm test -- --workers=4
+    volumes:
+      - ./test-results:/app/test-results
+    networks:
+      - test-network
+    profiles:
+      - parallel-execution
+    depends_on:
+      - mock-server
+
+networks:
+  test-network:
+    driver: bridge
+
+# Usage:
+# 1. Basic test execution:
+#    docker-compose up playwright-tests
+#
+# 2. With mock server:
+#    docker-compose --profile with-mock up
+#
+# 3. With report server:
+#    docker-compose --profile with-reports up
+#    Then visit: http://localhost:8080
+#
+# 4. Parallel execution:
+#    docker-compose --profile parallel-execution up
+#
+# 5. Full stack:
+#    docker-compose --profile with-mock --profile with-reports --profile parallel-execution up
+#
+# 6. Run specific test category:
+#    docker-compose run --rm playwright-tests npm run test:security
+#
+# 7. View logs:
+#    docker-compose logs -f playwright-tests
+#
+# 8. Cleanup:
+#    docker-compose down -v

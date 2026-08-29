@@ -1,0 +1,268 @@
+name: Playwright Tests - VWO Login
+
+on:
+  push:
+    branches: [ main, develop, feature/* ]
+  pull_request:
+    branches: [ main, develop ]
+  schedule:
+    # Run every day at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [18.x, 20.x]
+        browser: [chromium, firefox, webkit]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps ${{ matrix.browser }}
+
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          echo "BASE_URL=${{ secrets.BASE_URL || 'https://app.vwo.com' }}" >> .env
+          echo "VALID_EMAIL=${{ secrets.VALID_TEST_EMAIL }}" >> .env
+          echo "VALID_PASSWORD=${{ secrets.VALID_TEST_PASSWORD }}" >> .env
+          echo "INVALID_EMAIL=nonexistent.user.$(date +%s)@example.com" >> .env
+          echo "PAGE_LOAD_TARGET=2000" >> .env
+          echo "RATE_LIMIT_THRESHOLD=5" >> .env
+
+      - name: Run Playwright tests - ${{ matrix.browser }}
+        run: npx playwright test --project=${{ matrix.browser }}
+        continue-on-error: true
+
+      - name: Run Positive Tests - ${{ matrix.browser }}
+        run: npm run test:positive -- --project=${{ matrix.browser }}
+        if: always()
+        continue-on-error: true
+
+      - name: Run Negative Tests - ${{ matrix.browser }}
+        run: npm run test:negative -- --project=${{ matrix.browser }}
+        if: always()
+        continue-on-error: true
+
+      - name: Run Security Tests - ${{ matrix.browser }}
+        run: npm run test:security -- --project=${{ matrix.browser }}
+        if: always()
+        continue-on-error: true
+
+      - name: Run Accessibility Tests - ${{ matrix.browser }}
+        run: npm run test:accessibility -- --project=${{ matrix.browser }}
+        if: always()
+        continue-on-error: true
+
+      - name: Run Performance Tests - ${{ matrix.browser }}
+        run: npm run test:performance -- --project=${{ matrix.browser }}
+        if: always()
+        continue-on-error: true
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.node-version }}-${{ matrix.browser }}
+          path: test-results/
+          retention-days: 30
+
+      - name: Upload Playwright Traces
+        uses: actions/upload-artifact@v3
+        if: failure()
+        with:
+          name: playwright-traces-${{ matrix.node-version }}-${{ matrix.browser }}
+          path: test-results/trace/
+          retention-days: 7
+
+  accessibility-audit:
+    name: Accessibility Audit
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+          cache: 'npm'
+      
+      - run: npm install
+      
+      - run: npx playwright install --with-deps chromium
+      
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          echo "BASE_URL=${{ secrets.BASE_URL || 'https://app.vwo.com' }}" >> .env
+      
+      - name: Run Accessibility Tests
+        run: npm run test:accessibility
+      
+      - name: Upload Accessibility Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: accessibility-report
+          path: test-results/
+          retention-days: 30
+
+  performance-benchmark:
+    name: Performance Benchmark
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+          cache: 'npm'
+      
+      - run: npm install
+      
+      - run: npx playwright install --with-deps chromium
+      
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          echo "BASE_URL=${{ secrets.BASE_URL || 'https://app.vwo.com' }}" >> .env
+      
+      - name: Run Performance Tests
+        run: npm run test:performance
+      
+      - name: Upload Performance Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: performance-report
+          path: test-results/
+          retention-days: 30
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 20.x
+          cache: 'npm'
+      
+      - run: npm install
+      
+      - run: npx playwright install --with-deps chromium
+      
+      - name: Create .env file
+        run: |
+          cp .env.example .env
+          echo "BASE_URL=${{ secrets.BASE_URL || 'https://app.vwo.com' }}" >> .env
+          echo "VALID_EMAIL=${{ secrets.VALID_TEST_EMAIL }}" >> .env
+          echo "VALID_PASSWORD=${{ secrets.VALID_TEST_PASSWORD }}" >> .env
+      
+      - name: Run Security Tests
+        run: npm run test:security
+      
+      - name: Upload Security Report
+        uses: actions/upload-artifact@v3
+        if: always()
+        with:
+          name: security-report
+          path: test-results/
+          retention-days: 30
+
+  test-report:
+    name: Test Report Summary
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [test]
+    
+    steps:
+      - name: Download all reports
+        uses: actions/download-artifact@v3
+      
+      - name: Generate Summary
+        run: |
+          echo "## Playwright Test Execution Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Test Runs" >> $GITHUB_STEP_SUMMARY
+          echo "- Node Versions: 18.x, 20.x" >> $GITHUB_STEP_SUMMARY
+          echo "- Browsers: Chromium, Firefox, WebKit" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Test Suites: 5 (Positive, Negative, Security, Accessibility, Performance)" >> $GITHUB_STEP_SUMMARY
+          echo "- Total Test Cases: 85+" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- HTML Reports: Available in artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Traces: Available for debugging" >> $GITHUB_STEP_SUMMARY
+          echo "- Execution Time: See individual job logs" >> $GITHUB_STEP_SUMMARY
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Playwright tests completed!\n\nCheck the artifacts for detailed reports:\n- HTML Test Report\n- Execution Traces\n- Performance Metrics'
+            })
+
+  notify-slack:
+    name: Slack Notification
+    runs-on: ubuntu-latest
+    if: failure() && github.event_name == 'push'
+    
+    steps:
+      - name: Notify Slack on Failure
+        uses: slackapi/slack-github-action@v1
+        with:
+          payload: |
+            {
+              "text": "❌ Playwright tests failed",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*VWO Login - Playwright Tests Failed*\n*Repo:* ${{ github.repository }}\n*Branch:* ${{ github.ref }}\n*Commit:* ${{ github.sha }}"
+                  }
+                },
+                {
+                  "type": "actions",
+                  "elements": [
+                    {
+                      "type": "button",
+                      "text": {
+                        "type": "plain_text",
+                        "text": "View Workflow"
+                      },
+                      "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+                    }
+                  ]
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+        if: ${{ secrets.SLACK_WEBHOOK_URL != '' }}
