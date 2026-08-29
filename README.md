@@ -30,6 +30,13 @@ AI-powered test automation blueprint.
     - [Pack pipeline](#pack-pipeline)
     - [Voice spine](#voice-spine)
     - [Hook ladder](#hook-ladder)
+  - [Chapter 07: AI Agents](#chapter-07-ai-agents)
+    - [The B.L.A.S.T. protocol](#the-blast-protocol)
+    - [A.N.T. 3-layer architecture](#ant-3-layer-architecture)
+    - [Running the agent](#running-the-agent)
+    - [Anti-hallucination design](#anti-hallucination-design)
+    - [Field notes from the build](#field-notes-from-the-build)
+  - [Chapter 08: n8n Agents](#chapter-08-n8n-agents)
 - [License](#license)
 
 ## Overview
@@ -310,7 +317,7 @@ per-role resumes. The `resume-tailor` skill reads a job description, produces a
 structured spec (`.specs/*.json`) with highlighted skills, fit-gap notes, and
 section-by-section content, then renders a polished `.docx` into `output/`.
 
-**Q&A — why use this?**
+**Q&A - why use this?**
 - **Q: When do I reach for it?** A: When applying to a specific role and you want the resume keywords, ordering, and emphasis matched to that posting instead of sending one generic CV.
 - **Q: What does it replace?** A: Manual copy-paste tailoring in Word, and the guesswork of which buzzwords a posting actually screens for.
 - **Q: What's the gotcha?** A: The spec flags fit gaps (missing years, unverified claims) rather than papering over them. Resolve every `[confirm ...]` marker before sending anything out.
@@ -417,7 +424,7 @@ flowchart LR
     class EXPORT,IMPORT io
 ```
 
-**Q&A — why use this?**
+**Q&A - why use this?**
 - **Q: When do I reach for it?** A: Any active job hunt where you are juggling more than a handful of applications across stages.
 - **Q: What does it replace?** A: The spreadsheet. Status changes become a drag instead of a cell edit, and search plus metrics come free.
 - **Q: What's the gotcha?** A: Data lives only in that browser's IndexedDB. Use Export before clearing site data or switching machines; import replaces everything.
@@ -611,10 +618,211 @@ flowchart TB
     class LI,X pack
 ```
 
-**Q&A — why use this?**
+**Q&A - why use this?**
 - **Q: When do I reach for it?** A: When a seed needs to become a Medium + LinkedIn + image pack in this voice, not a generic rewrite.
 - **Q: What does it replace?** A: Re-prompting from scratch for length, banned phrases, first-comment splits, and image specs.
 - **Q: What's the gotcha?** A: A pack with no receipt is the biggest quality drop. Supply a real story, or accept a composite flagged for anonymization. No em dashes, anywhere.
+
+### Chapter 07: AI Agents
+
+A **Test Plan Agent**: give it a Jira ID, get back a formal 14-section test plan
+where every claim traces to a real field on the ticket. Built with the
+**B.L.A.S.T.** protocol on the **A.N.T.** 3-layer architecture.
+
+**Why:** the naive version (paste a ticket into a chat window, ask for a test plan)
+hallucinates acceptance criteria, produces a different shape every run, and gives you
+no way to tell which step went wrong when the output is bad.
+
+**Q&A - why use this?**
+- **Q: When do I reach for it?** A: When a story needs a review-ready test plan and you need every scope decision defensible to a reviewer.
+- **Q: What does it replace?** A: Hand-writing the same 14 sections per ticket, and the re-prompting loop when a chat model drifts from your template.
+- **Q: What's the gotcha?** A: It will refuse a thin ticket rather than invent one, returning a gap report instead. That is the design, not a bug: 2 of 4 real tickets were refused in testing.
+
+#### The B.L.A.S.T. protocol
+
+Five phases with hard gates. Nothing enters `tools/` until Discovery Questions are
+answered, the data schema is frozen, and the blueprint is approved.
+
+```mermaid
+flowchart LR
+    P0["Protocol 0<br/>Initialize memory"] --> GATE{{"Gates A/B/C<br/>halt until green"}}
+    GATE --> B["B - Blueprint<br/>5 discovery questions<br/>freeze the schema"]
+    B --> L["L - Link<br/>prove every connection<br/>before any logic"]
+    L --> A["A - Architect<br/>SOPs first, then tools"]
+    A --> S["S - Stylize<br/>frozen template<br/>output gates"]
+    S --> T["T - Trigger<br/>UI + CLI"]
+
+    classDef src fill:#57606a,stroke:#24292f,color:#fff
+    classDef gate fill:#bf8700,stroke:#7a5600,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    class P0 src
+    class GATE gate
+    class B,L,A ai
+    class S,T out
+```
+
+Four memory files carry the project state: `task_plan.md` (phases and checklists),
+`findings.md` (research and constraints), `progress.md` (a timestamped log of what was
+done, what errored, what the result was), and `LLM.md` (the constitution: schemas,
+18 behavioural rules, 10 architectural invariants).
+
+#### A.N.T. 3-layer architecture
+
+The premise: **LLMs are probabilistic, business logic must be deterministic.** So the
+pipeline is seven steps and exactly one of them calls a model.
+
+```mermaid
+flowchart TB
+    subgraph L1["Layer 1 - Architecture (architecture/)"]
+        SOP["6 markdown SOPs<br/>Golden Rule: SOP changes before code"]
+    end
+    subgraph L2["Layer 2 - Navigation (navigation.py)"]
+        NAV["Routes tools, owns failure branches<br/>parses intent with a regex, not an LLM"]
+    end
+    subgraph L3["Layer 3 - Tools (tools/)"]
+        T1["jira_fetch · field_map<br/>adf_flatten · normalize"]
+        T2["readiness · render · trace<br/>6 of 9 are pure functions"]
+        T3["plan_build<br/>THE ONLY probabilistic step"]
+    end
+
+    SOP --> NAV --> T1 --> T2
+    NAV --> T3
+
+    classDef src fill:#57606a,stroke:#24292f,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef gate fill:#bf8700,stroke:#7a5600,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    class SOP src
+    class NAV ai
+    class T1,T2 out
+    class T3 gate
+```
+
+The pipeline, end to end:
+
+```mermaid
+flowchart LR
+    P["prompt<br/>'plan SOAP-1'"] --> K["parse key<br/>regex"]
+    K --> F["fetch<br/>REST v3"]
+    F --> N["normalize<br/>ADF to markdown"]
+    N --> R{{"readiness<br/>score >= 5/11?"}}
+    R -->|no| GAP["gap report<br/>NO plan written"]
+    R -->|yes| LLM["one LLM call<br/>returns JSON"]
+    LLM --> V{{"schema gate<br/>2 retries max"}}
+    V --> RND["render<br/>frozen template"]
+    RND --> MD["plan.md + trace.json"]
+
+    classDef src fill:#57606a,stroke:#24292f,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef gate fill:#bf8700,stroke:#7a5600,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    class P,K,F,N src
+    class LLM ai
+    class R,V gate
+    class RND,MD,GAP out
+```
+
+#### Running the agent
+
+```bash
+cd chapter_07_AI_Agents/Test-Plan-Agent-Blast
+pip install -r requirements.txt
+cp .env.example .env          # or use the Settings page
+streamlit run app.py          # UI on :8501
+```
+
+Open **Settings** first: add the Jira URL, email and API token plus an LLM key
+(DeepSeek or Groq, both OpenAI-compatible), then press both **Test connection**
+buttons. The CLI mirrors the UI:
+
+```bash
+python run.py SOAP-1                    # generate a plan
+python run.py "make a plan for VWO-49"  # natural language, same result
+python run.py --health                  # prove both connections
+python run.py --dry-run SOAP-1          # fetch + normalize, no LLM call
+```
+
+Exit codes: `0` ok, `2` bad input, `3` auth, `4` not found, `5` rate limited,
+`6` schema violation, `7` LLM failure.
+
+#### Anti-hallucination design
+
+The model returns **JSON, not markdown**. `render.py` owns the format, so the model
+never sees the template and cannot drift from it. Two schema fields do the real work:
+
+```json
+{
+  "scope": [{
+    "type": "Error Handling",
+    "rationale": "Assert the 400 response names the offending field.",
+    "justified_by": "FR-03: the system must reject requests missing sISBN."
+  }],
+  "assumptions": [{
+    "field": "environment.url",
+    "assumed_value": "QA environment (URL not specified in ticket)",
+    "why": "Ticket does not provide a concrete environment URL"
+  }]
+}
+```
+
+`justified_by` is required on every scope entry and must name the ticket fact that put
+it there. A model that cannot fill it has just admitted the entry is padding, and the
+schema rejects the response. That turns "please do not hallucinate" from a hopeful
+instruction into a structural constraint. Anything filled without ticket evidence lands
+in `assumptions[]` and renders into the deliverable, not into a debug log.
+
+#### Field notes from the build
+
+Three findings that only surfaced by running it against a live Jira and a live model:
+
+| Finding | Why it matters |
+|---|---|
+| **Jira answers 404, not 401**, on `/issue/{key}` when auth is bad | It hides issue existence from unauthenticated callers, so an expired token presents as a *missing ticket*. The fix is to call `/myself` on a 404 to disambiguate. |
+| **Groq counts `max_tokens` against the TPM limit** | The reservation is billed, not the completion. A 2,669-token prompt with `max_tokens: 8000` reads as 10,669 against an 8,000 cap. Check the reservation before slimming the payload. |
+| **`config.json` silently shadowed `.env`** | Saving credentials in the UI wrote them to `config.json`, which outranks `.env`, so later edits to `.env` were ignored with no indication. Settings now shows the source of every value. |
+
+### Chapter 08: n8n Agents
+
+Two n8n workflows that wire an LLM to Jira as a **tool**, so a chat message like
+"fetch PROJ-12" or "raise a bug for the login page" becomes a real Jira API call.
+
+**Why:** it is the same Jira-agent idea as chapter 07, expressed on a visual
+low-code canvas instead of in Python, which makes the agent loop legible to people
+who will not read a call stack.
+
+**Q&A - why use this?**
+- **Q: When do I reach for it?** A: When the workflow should be editable by someone who does not write Python, or when it needs to run on a schedule without hosting your own app.
+- **Q: What does it replace?** A: The glue code around auth, retries and scheduling. n8n stores credentials by reference, so the exported JSON carries no secrets.
+- **Q: What's the gotcha?** A: The agent decides *when* to call the Jira tool, so a vague prompt can create the wrong ticket. Chapter 07's approach (deterministic fetch, one bounded LLM step) trades that flexibility for repeatability.
+
+```mermaid
+flowchart LR
+    CT["Chat trigger"] --> AG["AI Agent"]
+    ST["Schedule trigger"] --> AG
+    BR["Brain<br/>OpenAI chat model"] --> AG
+    ME["Memory<br/>buffer window"] --> AG
+    AG --> JT["Jira tool<br/>get / create issue"]
+    JT --> OUT["Issue fetched<br/>or created"]
+
+    classDef src fill:#57606a,stroke:#24292f,color:#fff
+    classDef ai fill:#1f6feb,stroke:#0b3d91,color:#fff
+    classDef gate fill:#bf8700,stroke:#7a5600,color:#fff
+    classDef out fill:#2da44e,stroke:#0f5323,color:#fff
+    class CT,ST src
+    class AG,BR ai
+    class ME,JT gate
+    class OUT out
+```
+
+Import either file through **n8n > Workflows > Import from File**, then attach your
+own `openAiApi` and `jiraSoftwareCloudApi` credentials:
+
+```
+chapter_08_n8n/Agents/
+├── 01_FetchJIRATicket_AIAgent.json    # 9 nodes: chat/schedule trigger -> agent -> Jira get
+└── 02_CreateJIRATicket_AIAgent.json   # 9 nodes: same shape, Jira create
+```
 
 ## License
 
